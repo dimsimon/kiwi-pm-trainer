@@ -1,21 +1,28 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY is missing in environment variables');
+      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const { systemPrompt, history, userMessage } = await req.json();
 
-    // Формируем историю сообщений без пустых или битых элементов
+    // Формируем историю сообщений
     const formattedHistory = (history || [])
-      .filter((msg: { text?: string }) => msg.text && msg.text.trim() !== '')
-      .map((msg: { sender: string; text: string }) => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text }],
+      .filter((msg: { text?: string; content?: string }) => {
+        const txt = msg.text || msg.content;
+        return txt && txt.trim() !== '';
+      })
+      .map((msg: { sender?: string; role?: string; text?: string; content?: string }) => ({
+        role: (msg.sender === 'user' || msg.role === 'user') ? 'user' : 'model',
+        parts: [{ text: msg.text || msg.content || '' }],
       }));
 
-    // Собираем contents
     const contents = [
       ...formattedHistory,
       {
@@ -25,7 +32,7 @@ export async function POST(req: Request) {
     ];
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash',
       contents,
       config: {
         systemInstruction: systemPrompt || 'You are a helpful assistant.',
