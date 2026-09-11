@@ -1,7 +1,10 @@
 export interface VocabItem {
-  phrase: string;
+  id: string;
+  word?: string;
+  phrase?: string;
   translation: string;
   context?: string;
+  exampleEn?: string;
   addedAt?: number;
 }
 
@@ -11,12 +14,19 @@ export interface HighlightedPhrase {
 }
 
 export interface FeedbackData {
-  grammarScore: number;
-  clarityScore: number;
-  naturalnessScore: number;
-  feedback: string;
-  improvedVersion: string;
+  grammarScore?: number;
+  clarityScore?: number;
+  naturalnessScore?: number;
+  overallScore?: string;
+  feedback?: string;
+  improvedVersion?: string;
+  corrections?: Array<{
+    original: string;
+    better: string;
+    explanation: string;
+  }>;
   highlightedPhrases?: HighlightedPhrase[];
+  kiwiTip?: string;
 }
 
 export interface Scenario {
@@ -24,10 +34,14 @@ export interface Scenario {
   title: string;
   category: 'Relocation' | 'Everyday' | 'Social' | 'Work';
   description: string;
-  initialPrompt: string;
+  initialPrompt?: string;
+  initialMessage?: string;
+  systemPrompt?: string;
 }
 
 export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
+  role?: 'user' | 'assistant';
+  sender?: 'user' | 'ai';
+  content?: string;
+  text?: string;
 }
