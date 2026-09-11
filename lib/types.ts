@@ -7,6 +7,7 @@ export interface VocabItem {
   exampleEn?: string;
   exampleRu?: string;
   addedAt?: number;
+  dateAdded?: string | number;
 }
 
 export interface HighlightedPhrase {
