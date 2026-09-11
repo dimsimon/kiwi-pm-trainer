@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SCENARIOS as scenarios } from '@/lib/scenarios';
-import { Scenario, Message, FeedbackData } from '@/lib/types';
+import { Scenario, Message, FeedbackData, HighlightedPhrase } from '@/lib/types';
 import AudioRecorder from '@/components/AudioRecorder';
 import { speakText, stopSpeech } from '@/lib/speech';
 import { storage } from '@/lib/storage';
@@ -62,7 +62,7 @@ export default function HomePage() {
     if (saved.length > 0) {
       setMessages(saved);
     } else {
-      const initial: Message = { sender: 'ai', text: scenario.initialMessage };
+      const initial: Message = { role: 'assistant', content: scenario.initialPrompt };
       setMessages([initial]);
       storage.saveChatHistory(scenario.id, [initial]);
     }
@@ -73,7 +73,7 @@ export default function HomePage() {
     if (confirm('Сбросить историю этого диалога?')) {
       stopSpeech();
       setSpeakingMsgIdx(null);
-      const initial: Message = { sender: 'ai', text: selectedScenario.initialMessage };
+      const initial: Message = { role: 'assistant', content: selectedScenario.initialPrompt };
       setMessages([initial]);
       storage.saveChatHistory(selectedScenario.id, [initial]);
       setFeedback(null);
@@ -96,7 +96,7 @@ export default function HomePage() {
     stopSpeech();
     setSpeakingMsgIdx(null);
 
-    const userMsg: Message = { sender: 'user', text };
+    const userMsg: Message = { role: 'user', content: text };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     storage.saveChatHistory(selectedScenario.id, updatedMessages);
@@ -107,7 +107,7 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemPrompt: selectedScenario.systemPrompt,
+          systemPrompt: selectedScenario.description,
           history: messages,
           userMessage: text,
         }),
@@ -116,7 +116,7 @@ export default function HomePage() {
       const data = await response.json();
       const aiReply = data.reply || "Sorry, I couldn't process that.";
 
-      const finalMessages: Message[] = [...updatedMessages, { sender: 'ai', text: aiReply }];
+      const finalMessages: Message[] = [...updatedMessages, { role: 'assistant', content: aiReply }];
       setMessages(finalMessages);
       storage.saveChatHistory(selectedScenario.id, finalMessages);
 
@@ -257,24 +257,24 @@ export default function HomePage() {
               <div
                 key={idx}
                 className={`flex flex-col ${
-                  msg.sender === 'user' ? 'items-end' : 'items-start'
+                  msg.role === 'user' ? 'items-end' : 'items-start'
                 }`}
               >
                 <div
                   className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    msg.sender === 'user'
+                    msg.role === 'user'
                       ? 'bg-emerald-900/60 text-emerald-100 border border-emerald-700/50'
                       : 'bg-slate-900 text-slate-200 border border-slate-800'
                   }`}
                 >
                   <div className="flex justify-between items-center gap-2 mb-1.5">
                     <span className="font-bold text-xs opacity-60">
-                      {msg.sender === 'ai' ? 'AI Partner' : 'You'}
+                      {msg.role === 'assistant' ? 'AI Partner' : 'You'}
                     </span>
-                    {msg.sender === 'ai' && (
+                    {msg.role === 'assistant' && (
                       <button
                         type="button"
-                        onClick={() => handleToggleSpeech(msg.text || '', idx)}
+                        onClick={() => handleToggleSpeech(msg.content || '', idx)}
                         className={`text-xs flex items-center gap-1 font-medium ${
                           speakingMsgIdx === idx
                             ? 'text-rose-400 animate-pulse'
@@ -288,14 +288,14 @@ export default function HomePage() {
 
                   {/* Кликабельные слова */}
                   <p className="flex flex-wrap gap-x-1 gap-y-0.5">
-                    {(msg.text || '').split(' ').map((w: string, wIdx: number) => (
+                    {(msg.content || '').split(' ').map((w: string, wIdx: number) => (
                       <span
                         key={wIdx}
                         onClick={() => {
                           const cleanWord = w.replace(/^[^\w]+|[^\w]+$/g, '');
                           if (cleanWord) {
                             setSelectedWord(cleanWord);
-                            setSelectedContext(msg.text || '');
+                            setSelectedContext(msg.content || '');
                             setIsVocabOpen(true);
                           }
                         }}
@@ -332,57 +332,28 @@ export default function HomePage() {
             <div className="mb-3 p-3 bg-slate-900 border border-emerald-800/60 rounded-2xl space-y-3 text-xs max-h-52 overflow-y-auto">
               <div className="font-bold text-emerald-400 flex justify-between items-center">
                 <span>📊 Разбор речи и грамматика</span>
-                <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded border border-emerald-800/50">
-                  {feedback.overallScore}
-                </span>
               </div>
 
-              {/* Исправления ошибок */}
-              {feedback.corrections && feedback.corrections.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-semibold text-slate-400">Исправления:</div>
-                  {feedback.corrections.map((c: any, i: number) => (
-                    <div key={i} className="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
-                      <div className="text-rose-400 line-through">{c.original}</div>
-                      <div className="text-emerald-300 font-medium">👉 {c.better}</div>
-                      <div className="text-[10px] text-slate-400">{c.explanation}</div>
-                    </div>
-                  ))}
+              {/* Улучшенная версия */}
+              {feedback.improvedVersion && (
+                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
+                  <div className="text-[11px] font-semibold text-slate-400">Улучшенная версия:</div>
+                  <div className="text-emerald-300 font-medium">{feedback.improvedVersion}</div>
                 </div>
               )}
 
               {/* Фразовые глаголы и Коллокации */}
-              {feedback.highlightedPhrases && feedback.highlightedPhrases.length > 0 && (
-                <div className="space-y-1.5 pt-1 border-t border-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-400">💡 Полезные фразы и глаголы:</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {feedback.highlightedPhrases.map((item: any, i: number) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          setSelectedWord(item.phrase);
-                          setSelectedContext(`${item.phrase} — ${item.translation}`);
-                          setIsVocabOpen(true);
-                        }}
-                        className={`cursor-pointer px-2.5 py-1 rounded-lg border text-[11px] transition-all active:scale-95 flex items-center gap-1.5 ${
-                          item.type === 'phrasal_verb'
-                            ? 'bg-amber-950/40 border-amber-700/50 text-amber-200 hover:bg-amber-900/50'
-                            : 'bg-indigo-950/40 border-indigo-700/50 text-indigo-200 hover:bg-indigo-900/50'
-                        }`}
-                      >
-                        <span>{item.type === 'phrasal_verb' ? '🔄' : '🔗'}</span>
-                        <span className="font-semibold">{item.phrase}</span>
-                        <span className="opacity-60 text-[10px]">({item.translation})</span>
+              {feedback?.highlightedPhrases && feedback.highlightedPhrases.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="text-sm font-semibold text-slate-300">Key Phrases & Collocations:</h4>
+                  <div className="space-y-1.5">
+                    {feedback.highlightedPhrases.map((item: HighlightedPhrase, i: number) => (
+                      <div key={i} className="text-xs bg-slate-800/60 p-2 rounded border border-slate-700/50">
+                        <span className="font-medium text-emerald-400">{item.phrase}</span>
+                        <span className="text-slate-400"> — {item.explanation}</span>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* Совет Киви */}
-              {feedback.kiwiTip && (
-                <div className="text-[11px] bg-amber-950/30 border border-amber-800/40 p-2 rounded-xl text-amber-200">
-                  🇳🇿 <b>Kiwi Tip:</b> {feedback.kiwiTip}
                 </div>
               )}
             </div>
