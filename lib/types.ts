@@ -1,10 +1,11 @@
 export interface VocabItem {
   id: string;
-  word?: string;
+  word: string;
   phrase?: string;
   translation: string;
   context?: string;
   exampleEn?: string;
+  exampleRu?: string;
   addedAt?: number;
 }
 
