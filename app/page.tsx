@@ -8,6 +8,12 @@ import { speakText, stopSpeech } from '@/lib/speech';
 import { storage } from '@/lib/storage';
 import { VocabularyModal } from '@/components/VocabularyModal';
 
+interface SingleFeedback {
+  corrections?: string[];
+  vocabularySuggestions?: { original: string; recommended: string; reason: string }[];
+  improvedVersion?: string;
+}
+
 export default function HomePage() {
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,9 +32,17 @@ export default function HomePage() {
   const [selectedWord, setSelectedWord] = useState('');
   const [selectedContext, setSelectedContext] = useState('');
 
-  // Разбор ошибок (фидбек)
+  // Разбор ошибок по сценарию и по сообщениям
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
   const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+  const [singleFeedbacks, setSingleFeedbacks] = useState<Record<number, SingleFeedback>>({});
+  const [loadingSingleFeedbackIdx, setLoadingSingleFeedbackIdx] = useState<number | null>(null);
+
+  // Подсказки (Hints)
+  const [hints, setHints] = useState<string[]>([]);
+  const [isHintLoading, setIsHintLoading] = useState(false);
+  const [showHints, setShowHints] = useState(false);
+  const [draftText, setDraftText] = useState('');
 
   const categories = ['All', 'Relocation', 'Everyday', 'Social', 'Work'];
 
@@ -58,6 +72,9 @@ export default function HomePage() {
 
   const handleSelectScenario = (scenario: Scenario) => {
     setSelectedScenario(scenario);
+    setSingleFeedbacks({});
+    setHints([]);
+    setShowHints(false);
     const saved = storage.getChatHistory(scenario.id);
     if (saved.length > 0) {
       setMessages(saved);
@@ -77,6 +94,9 @@ export default function HomePage() {
       setMessages([initial]);
       storage.saveChatHistory(selectedScenario.id, [initial]);
       setFeedback(null);
+      setSingleFeedbacks({});
+      setHints([]);
+      setShowHints(false);
     }
   };
 
@@ -95,6 +115,7 @@ export default function HomePage() {
 
     stopSpeech();
     setSpeakingMsgIdx(null);
+    setShowHints(false);
 
     const userMsg: Message = { role: 'user', content: text };
     const updatedMessages = [...messages, userMsg];
@@ -130,6 +151,54 @@ export default function HomePage() {
     }
   };
 
+  const handleSingleMessageFeedback = async (msgContent: string, idx: number) => {
+    if (!selectedScenario) return;
+    setLoadingSingleFeedbackIdx(idx);
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'single_message',
+          scenarioTitle: selectedScenario.title,
+          userMessage: msgContent,
+        }),
+      });
+      const data = await res.json();
+      setSingleFeedbacks((prev) => ({ ...prev, [idx]: data }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingSingleFeedbackIdx(null);
+    }
+  };
+
+  const handleGetHints = async () => {
+    if (!selectedScenario || messages.length === 0) return;
+    setIsHintLoading(true);
+    setShowHints(true);
+
+    const lastAiMsg = [...messages].reverse().find((m) => m.role === 'assistant')?.content || '';
+
+    try {
+      const res = await fetch('/api/hint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenarioTitle: selectedScenario.title,
+          history: messages,
+          lastAiMessage: lastAiMsg,
+        }),
+      });
+      const data = await res.json();
+      setHints(data.hints || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsHintLoading(false);
+    }
+  };
+
   const handleGetFeedback = async () => {
     if (messages.length < 2) return;
     setIsFeedbackLoading(true);
@@ -137,7 +206,11 @@ export default function HomePage() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history: messages }),
+        body: JSON.stringify({
+          mode: 'full_scenario',
+          scenarioTitle: selectedScenario?.title,
+          history: messages,
+        }),
       });
       const data = await res.json();
       setFeedback(data);
@@ -271,7 +344,7 @@ export default function HomePage() {
                     <span className="font-bold text-xs opacity-60">
                       {msg.role === 'assistant' ? 'AI Partner' : 'You'}
                     </span>
-                    {msg.role === 'assistant' && (
+                    {msg.role === 'assistant' ? (
                       <button
                         type="button"
                         onClick={() => handleToggleSpeech(msg.content || '', idx)}
@@ -282,6 +355,14 @@ export default function HomePage() {
                         }`}
                       >
                         {speakingMsgIdx === idx ? '⏹ Стоп' : '🔊 Прослушать'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSingleMessageFeedback(msg.content || '', idx)}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 bg-slate-950/50 px-2 py-0.5 rounded border border-emerald-800/40"
+                      >
+                        {loadingSingleFeedbackIdx === idx ? 'Анализ...' : '✨ Анализ'}
                       </button>
                     )}
                   </div>
@@ -306,6 +387,30 @@ export default function HomePage() {
                     ))}
                   </p>
                 </div>
+
+                {/* Карточка мгновенного фидбека для конкретного сообщения */}
+                {singleFeedbacks[idx] && (
+                  <div className="mt-1.5 max-w-[88%] bg-slate-900 border border-emerald-800/50 rounded-xl p-3 text-xs space-y-2">
+                    {singleFeedbacks[idx].improvedVersion && (
+                      <div>
+                        <div className="text-[10px] text-slate-400 font-semibold">Улучшенная версия:</div>
+                        <div className="text-emerald-300">{singleFeedbacks[idx].improvedVersion}</div>
+                      </div>
+                    )}
+                    {singleFeedbacks[idx].vocabularySuggestions && singleFeedbacks[idx].vocabularySuggestions!.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] text-slate-400 font-semibold">PM лексика:</div>
+                        {singleFeedbacks[idx].vocabularySuggestions!.map((item, vIdx) => (
+                          <div key={vIdx} className="text-[11px] text-slate-300 bg-slate-950/60 p-1.5 rounded">
+                            <span className="line-through text-rose-400">{item.original}</span> →{' '}
+                            <span className="font-bold text-emerald-400">{item.recommended}</span>
+                            <div className="text-[10px] text-slate-400">{item.reason}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
 
@@ -327,52 +432,70 @@ export default function HomePage() {
             </button>
           )}
 
-          {/* Разбор ошибок, фразовых глаголов и коллокаций */}
-          {feedback && (
-            <div className="mb-3 p-3 bg-slate-900 border border-emerald-800/60 rounded-2xl space-y-3 text-xs max-h-52 overflow-y-auto">
-              <div className="font-bold text-emerald-400 flex justify-between items-center">
-                <span>📊 Разбор речи и грамматика</span>
+          {/* Подсказки (Hint Dropdown) */}
+          {showHints && (
+            <div className="mb-2 p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-400">
+                <span className="font-semibold text-emerald-400">💡 Идеи ответов (PM Hints):</span>
+                <button onClick={() => setShowHints(false)} className="hover:text-slate-200">✕</button>
               </div>
-
-              {/* Улучшенная версия */}
-              {feedback.improvedVersion && (
-                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
-                  <div className="text-[11px] font-semibold text-slate-400">Улучшенная версия:</div>
-                  <div className="text-emerald-300 font-medium">{feedback.improvedVersion}</div>
-                </div>
-              )}
-
-              {/* Фразовые глаголы и Коллокации */}
-              {feedback?.highlightedPhrases && feedback.highlightedPhrases.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <h4 className="text-sm font-semibold text-slate-300">Key Phrases & Collocations:</h4>
-                  <div className="space-y-1.5">
-                    {feedback.highlightedPhrases.map((item: HighlightedPhrase, i: number) => (
-                      <div key={i} className="text-xs bg-slate-800/60 p-2 rounded border border-slate-700/50">
-                        <span className="font-medium text-emerald-400">{item.phrase}</span>
-                        <span className="text-slate-400"> — {item.explanation}</span>
-                      </div>
-                    ))}
-                  </div>
+              {isHintLoading ? (
+                <div className="text-slate-500 italic">Генерация вариантов...</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {hints.map((hint, hIdx) => (
+                    <button
+                      key={hIdx}
+                      onClick={() => {
+                        setDraftText(hint);
+                        setShowHints(false);
+                      }}
+                      className="w-full text-left bg-slate-950 hover:bg-emerald-950/40 p-2 rounded-lg border border-slate-800 text-slate-200 transition-colors"
+                    >
+                      {hint}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* Кнопка запуска разбора */}
-          <div className="mb-2 flex justify-end">
+          {/* Панель управляющих кнопок */}
+          <div className="mb-2 flex justify-between items-center text-xs">
+            <button
+              onClick={handleGetHints}
+              className="bg-slate-900 hover:bg-slate-800 text-amber-400 px-3 py-1.5 rounded-xl border border-slate-800 font-medium flex items-center gap-1"
+            >
+              💡 Подсказка
+            </button>
             <button
               onClick={handleGetFeedback}
               disabled={isFeedbackLoading || messages.length < 2}
-              className="text-xs bg-slate-900 hover:bg-slate-800 text-emerald-400 px-3 py-1.5 rounded-xl border border-slate-800 disabled:opacity-50 font-medium"
+              className="bg-slate-900 hover:bg-slate-800 text-emerald-400 px-3 py-1.5 rounded-xl border border-slate-800 disabled:opacity-50 font-medium"
             >
-              {isFeedbackLoading ? 'Анализ диалога...' : '💡 Проверить мои ошибки'}
+              {isFeedbackLoading ? 'Анализ...' : '📊 Отчет по сценарию'}
             </button>
           </div>
 
-          {/* Запись аудио */}
+          {/* Разбор ошибок всего сценария */}
+          {feedback && (
+            <div className="mb-3 p-3 bg-slate-900 border border-emerald-800/60 rounded-2xl space-y-3 text-xs max-h-52 overflow-y-auto">
+              <div className="font-bold text-emerald-400 flex justify-between items-center">
+                <span>📊 Итоговый отчет сценария</span>
+              </div>
+              {feedback.overallFeedback && (
+                <p className="text-slate-300 leading-relaxed">{feedback.overallFeedback}</p>
+              )}
+            </div>
+          )}
+
+          {/* Запись аудио и подстановка draftText */}
           <div className="mt-auto pt-2 border-t border-slate-800">
-            <AudioRecorder onSendMessage={handleSendMessage} />
+            <AudioRecorder
+              onSendMessage={handleSendMessage}
+              initialText={draftText}
+              autoSubmitTimeout={2000}
+            />
           </div>
         </main>
       )}

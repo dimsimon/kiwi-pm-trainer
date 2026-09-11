@@ -1,62 +1,66 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export async function POST(req: Request) {
   try {
-    const { history } = await req.json();
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+    }
 
+    const ai = new GoogleGenAI({ apiKey });
+    const { mode, userMessage, scenarioTitle, history } = await req.json();
+
+    if (mode === 'single_message') {
+      const prompt = `
+        You are an expert Business English & Project Management Communication Coach.
+        Analyze the following user message sent in the context of the PM scenario: "${scenarioTitle}".
+        User Message: "${userMessage}"
+
+        Return ONLY a JSON object with this exact structure:
+        {
+          "corrections": ["Grammar/spelling fix 1", "Better phrasing fix 2"],
+          "vocabularySuggestions": [
+            { "original": "simple word", "recommended": "PM terminology", "reason": "Why it sounds more professional" }
+          ],
+          "improvedVersion": "A polished, professional alternative version of the entire message."
+        }
+      `;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.6-flash',
+        contents: prompt,
+        config: { responseMimeType: 'application/json' },
+      });
+
+      const data = JSON.parse(response.text || '{}');
+      return NextResponse.json(data);
+    } 
+    
+    // Full scenario analysis mode
     const prompt = `
-Analyze the following English conversation history between a Kiwi interviewer and a user learning English.
+      Analyze this PM conversation history for scenario "${scenarioTitle}":
+      ${JSON.stringify(history)}
 
-Find grammar/vocabulary mistakes in the user's responses, suggest natural Kiwi English improvements, and identify key natural collocations AND PHRASAL VERBS used in the context.
-
-CONVERSATION HISTORY:
-${JSON.stringify(history, null, 2)}
-
-Return ONLY a valid JSON object matching this schema:
-{
-  "overallScore": "Short evaluation (e.g. B2 / Good fluency)",
-  "corrections": [
-    {
-      "original": "User text with error",
-      "better": "Improved natural Kiwi version",
-      "explanation": "Brief explanation of why"
-    }
-  ],
-  "highlightedPhrases": [
-    {
-      "phrase": "e.g. figure out / sorted out / catch up / kick off",
-      "type": "phrasal_verb",
-      "translation": "Перевод на русский",
-      "explanation": "Контекст применения фразового глагола"
-    },
-    {
-      "phrase": "e.g. sharp learning curve / smooth transition",
-      "type": "collocation",
-      "translation": "Перевод на русский",
-      "explanation": "Контекст применения устойчивого выражения"
-    }
-  ],
-  "kiwiTip": "One practical tip about Kiwi English or culture based on the chat"
-}
-`;
+      Return ONLY a JSON object:
+      {
+        "overallFeedback": "Summary of performance...",
+        "strengths": ["Strength 1", "Strength 2"],
+        "keyImprovements": ["Improvement 1", "Improvement 2"]
+      }
+    `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        responseMimeType: 'application/json',
-      },
+      contents: prompt,
+      config: { responseMimeType: 'application/json' },
     });
 
-    const jsonText = response.text || '{}';
-    const feedbackData = JSON.parse(jsonText);
+    const data = JSON.parse(response.text || '{}');
+    return NextResponse.json(data);
 
-    return NextResponse.json(feedbackData);
   } catch (error) {
-    console.error('Feedback API error:', error);
+    console.error('Feedback API Error:', error);
     return NextResponse.json({ error: 'Failed to generate feedback' }, { status: 500 });
   }
 }
