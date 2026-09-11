@@ -19,6 +19,7 @@ export async function POST(req: Request) {
         return txt && txt.trim() !== '';
       })
       .map((msg: { sender?: string; role?: string; text?: string; content?: string }) => ({
+        // Исправлено: в Gemini SDK ролями выступают 'user' и 'model'
         role: (msg.sender === 'user' || msg.role === 'user') ? 'user' : 'model',
         parts: [{ text: msg.text || msg.content || '' }],
       }));
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     ];
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash', // Исправлено: валидная актуальная модель Gemini
       contents,
       config: {
         systemInstruction: systemPrompt || 'You are a helpful assistant.',

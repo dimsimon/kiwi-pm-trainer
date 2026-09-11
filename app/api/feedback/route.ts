@@ -13,30 +13,32 @@ export async function POST(req: Request) {
 
     if (mode === 'single_message') {
       const prompt = `
-        You are an expert Business English & Project Management Communication Coach.
-        Analyze the following user message sent in the context of the PM scenario: "${scenarioTitle}".
-        User Message: "${userMessage}"
+You are an English communication coach.
+Analyze the following user message: "${userMessage}" in the context of the scenario: "${scenarioTitle}".
 
-        Return ONLY a JSON object with this exact structure:
-        {
-          "corrections": ["Grammar/spelling fix 1", "Better phrasing fix 2"],
-          "vocabularySuggestions": [
-            { "original": "simple word", "recommended": "PM terminology", "reason": "Why it sounds more professional" }
-          ],
-          "improvedVersion": "A polished, professional alternative version of the entire message."
-        }
-      `;
+1. Improved version: Provide a natural, context-appropriate alternative (keep the same tone — do NOT turn a casual greeting into a formal business email unless it's a formal scenario).
+2. Vocabulary suggestions: Provide 1-2 relevant phrase/vocabulary improvements if applicable.
+
+Return JSON in this format:
+{
+  "improvedVersion": "string",
+  "vocabularySuggestions": [
+    { "original": "string", "recommended": "string", "reason": "string" }
+  ]
+}
+`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-1.5-flash',
         contents: prompt,
         config: { responseMimeType: 'application/json' },
       });
 
-      const data = JSON.parse(response.text || '{}');
+      const cleanJson = (response.text || '{}').replace(/```json|```/g, '').trim();
+      const data = JSON.parse(cleanJson);
       return NextResponse.json(data);
     } 
-    
+
     // Full scenario analysis mode
     const prompt = `
       Analyze this PM conversation history for scenario "${scenarioTitle}":
@@ -51,12 +53,13 @@ export async function POST(req: Request) {
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: { responseMimeType: 'application/json' },
     });
 
-    const data = JSON.parse(response.text || '{}');
+    const cleanJson = (response.text || '{}').replace(/```json|```/g, '').trim();
+    const data = JSON.parse(cleanJson);
     return NextResponse.json(data);
 
   } catch (error) {
