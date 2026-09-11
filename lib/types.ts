@@ -11,24 +11,19 @@ export interface VocabItem {
 }
 
 export interface HighlightedPhrase {
-  phrase: string;
+  original: string;
+  suggestion: string;
+  type: 'error' | 'vocabulary' | 'culture';
   explanation: string;
 }
 
 export interface FeedbackData {
-  grammarScore?: number;
-  clarityScore?: number;
-  naturalnessScore?: number;
-  overallScore?: string;
-  feedback?: string;
-  improvedVersion?: string;
-  corrections?: Array<{
-    original: string;
-    better: string;
-    explanation: string;
-  }>;
+  overallFeedback?: string;
+  summary?: string;
+  score?: number;
   highlightedPhrases?: HighlightedPhrase[];
-  kiwiTip?: string;
+  improvements?: string[];
+  vocabularySuggestions?: { original: string; recommended: string; reason: string }[];
 }
 
 export interface Scenario {

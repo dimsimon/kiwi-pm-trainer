@@ -483,8 +483,10 @@ export default function HomePage() {
               <div className="font-bold text-emerald-400 flex justify-between items-center">
                 <span>📊 Итоговый отчет сценария</span>
               </div>
-              {feedback.overallFeedback && (
-                <p className="text-slate-300 leading-relaxed">{feedback.overallFeedback}</p>
+              {((feedback as any).overallFeedback || (feedback as any).summary) && (
+                <p className="text-slate-300 leading-relaxed">
+                  {(feedback as any).overallFeedback || (feedback as any).summary}
+                </p>
               )}
             </div>
           )}
