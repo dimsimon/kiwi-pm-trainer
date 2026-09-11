@@ -1,4 +1,4 @@
-import { Message, VocabItem } from '@/types';
+import { Message, VocabItem } from './types';
 
 const CHAT_HISTORY_PREFIX = 'kiwi_chat_history_';
 const VOCABULARY_KEY = 'kiwi_vocabulary';

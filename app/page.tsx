@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SCENARIOS as scenarios } from '@/lib/scenarios';
-import { Scenario, Message, FeedbackData } from '@/types';
+import { Scenario, Message, FeedbackData } from '@/lib/types';
 import AudioRecorder from '@/components/AudioRecorder';
 import { speakText, stopSpeech } from '@/lib/speech';
 import { storage } from '@/lib/storage';
@@ -288,7 +288,7 @@ export default function HomePage() {
 
                   {/* Кликабельные слова */}
                   <p className="flex flex-wrap gap-x-1 gap-y-0.5">
-                    {(msg.text || '').split(' ').map((w, wIdx) => (
+                    {(msg.text || '').split(' ').map((w: string, wIdx: number) => (
                       <span
                         key={wIdx}
                         onClick={() => {
@@ -341,7 +341,7 @@ export default function HomePage() {
               {feedback.corrections && feedback.corrections.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="text-[11px] font-semibold text-slate-400">Исправления:</div>
-                  {feedback.corrections.map((c, i) => (
+                  {feedback.corrections.map((c: any, i: number) => (
                     <div key={i} className="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
                       <div className="text-rose-400 line-through">{c.original}</div>
                       <div className="text-emerald-300 font-medium">👉 {c.better}</div>
@@ -356,7 +356,7 @@ export default function HomePage() {
                 <div className="space-y-1.5 pt-1 border-t border-slate-800">
                   <div className="text-[11px] font-semibold text-slate-400">💡 Полезные фразы и глаголы:</div>
                   <div className="flex flex-wrap gap-1.5">
-                    {feedback.highlightedPhrases.map((item, i) => (
+                    {feedback.highlightedPhrases.map((item: any, i: number) => (
                       <div
                         key={i}
                         onClick={() => {

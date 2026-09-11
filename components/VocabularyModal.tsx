@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { VocabItem } from '@/types';
+import { VocabItem } from '@/lib/types';
 import { storage } from '@/lib/storage';
 
 interface Props {

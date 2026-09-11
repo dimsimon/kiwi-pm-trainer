@@ -1,4 +1,4 @@
-import { Scenario } from '@/types';
+import { Scenario } from './types';
 
 export const SCENARIOS: Scenario[] = [
   // --- БЛОК 1: RELOCATION & DAILY LIFE ---
