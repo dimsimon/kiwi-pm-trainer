@@ -10,9 +10,13 @@ export default function Home() {
   const [selectedScenario, setSelectedScenario] = useState<Scenario>(SCENARIOS[0]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Voice Recognition states
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   // Feedback & Hints states
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
@@ -34,7 +38,6 @@ export default function Home() {
     ? SCENARIOS
     : SCENARIOS.filter((s) => s.category === selectedCategory);
 
-  // Синхронизация истории при выборе нового сценария
   useEffect(() => {
     const history = storage.getChatHistory(selectedScenario.id);
     if (history.length > 0) {
@@ -59,6 +62,36 @@ export default function Home() {
   const handleSelectScenario = (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsSidebarOpen(false);
+  };
+
+  const handleToggleVoice = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Голосовой ввод не поддерживается браузером');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInputMessage((prev: string) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const handleSendMessage = async (textToSend?: string) => {
@@ -403,8 +436,7 @@ export default function Home() {
             >
               💡 Подсказка
             </button>
-            
-            {/* Кнопка микрофона */}
+
             <button
               onClick={handleToggleVoice}
               className={`p-2.5 rounded-xl border transition-all shrink-0 ${
@@ -422,7 +454,7 @@ export default function Home() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder={isListening ? 'Слушаю...' : 'Напишите или наговорите ответ...'}
+              placeholder={isListening ? 'Слушаю...' : 'Напишите ответ...'}
               className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-base md:text-xs focus:outline-none focus:border-emerald-500 text-slate-100 min-w-0"
             />
             <button
@@ -446,36 +478,3 @@ export default function Home() {
     </main>
   );
 }
-
-const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
-  const handleToggleVoice = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Голосовой ввод не поддерживается вашим браузером');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US'; // или 'ru-RU' в зависимости от надобности
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInputMessage((prev) => (prev ? `${prev} ${transcript}` : transcript));
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  };
