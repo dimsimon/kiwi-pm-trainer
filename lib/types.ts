@@ -46,3 +46,10 @@ export interface Scenario {
   initialMessage?: string;
   isStarMode?: boolean;
 }
+
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}

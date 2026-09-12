@@ -403,12 +403,26 @@ export default function Home() {
             >
               💡 Подсказка
             </button>
+            
+            {/* Кнопка микрофона */}
+            <button
+              onClick={handleToggleVoice}
+              className={`p-2.5 rounded-xl border transition-all shrink-0 ${
+                isListening
+                  ? 'bg-rose-600 text-white border-rose-500 animate-pulse'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+              title="Голосовой ввод"
+            >
+              🎤
+            </button>
+
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Напишите ответ..."
+              placeholder={isListening ? 'Слушаю...' : 'Напишите или наговорите ответ...'}
               className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-base md:text-xs focus:outline-none focus:border-emerald-500 text-slate-100 min-w-0"
             />
             <button
@@ -432,3 +446,36 @@ export default function Home() {
     </main>
   );
 }
+
+const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const handleToggleVoice = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Голосовой ввод не поддерживается вашим браузером');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US'; // или 'ru-RU' в зависимости от надобности
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInputMessage((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
