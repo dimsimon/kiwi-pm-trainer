@@ -12,7 +12,8 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   // Feedback & Hints states
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
   const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
@@ -33,13 +34,13 @@ export default function Home() {
     ? SCENARIOS
     : SCENARIOS.filter((s) => s.category === selectedCategory);
 
-  // Загрузка истории при смене сценария
+  // Синхронизация истории при выборе нового сценария
   useEffect(() => {
     const history = storage.getChatHistory(selectedScenario.id);
     if (history.length > 0) {
       setMessages(history);
     } else {
-      const startText = selectedScenario.initialPrompt || selectedScenario.initialMessage || selectedScenario.description;
+      const startText = selectedScenario.initialPrompt || selectedScenario.initialMessage || selectedScenario.systemPrompt || selectedScenario.description;
       const initialMsgs: Message[] = [
         { role: 'assistant', content: startText }
       ];
@@ -51,12 +52,15 @@ export default function Home() {
     setHints([]);
   }, [selectedScenario]);
 
-  // Скролл вниз при новых сообщениях
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, singleMessageFeedback]);
 
-  // Отправка сообщения ИИ
+  const handleSelectScenario = (scenario: Scenario) => {
+    setSelectedScenario(scenario);
+    setIsSidebarOpen(false); // Скрывать боковую панель на мобилках после выбора
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
     if (!text.trim() || isLoading) return;
@@ -68,11 +72,12 @@ export default function Home() {
     setSingleMessageFeedback(null);
 
     try {
+      const systemPrompt = selectedScenario.systemPrompt || selectedScenario.initialPrompt || selectedScenario.description;
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemPrompt: selectedScenario.initialPrompt || selectedScenario.description,
+          systemPrompt,
           history: newMessages.slice(0, -1),
           userMessage: text,
         }),
@@ -91,7 +96,6 @@ export default function Home() {
     }
   };
 
-  // Получение разбора отдельного сообщения (Single Feedback)
   const handleAnalyzeLastMessage = async () => {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
     if (!lastUserMsg) return;
@@ -116,7 +120,6 @@ export default function Home() {
     }
   };
 
-  // Получение итогового отчета по всему сценарию (включая STAR)
   const handleGetFullFeedback = async () => {
     if (messages.length < 2) return;
     setIsFeedbackLoading(true);
@@ -140,7 +143,6 @@ export default function Home() {
     }
   };
 
-  // Получение подсказок (Hints)
   const handleGetHints = async () => {
     setIsHintsLoading(true);
     try {
@@ -161,7 +163,6 @@ export default function Home() {
     }
   };
 
-  // Вызов словаря для выделенного слова
   const handleOpenDictForWord = (word: string, contextText: string) => {
     setSelectedWord(word);
     setSelectedWordContext(contextText);
@@ -169,9 +170,13 @@ export default function Home() {
   };
 
   return (
-    <main className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
-      {/* Левая панель: Сценарии */}
-      <aside className="w-80 border-r border-slate-800 bg-slate-900/50 flex flex-col p-4 space-y-4">
+    <main className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden relative">
+      {/* Боковая панель для Mobile (оверлей) и Desktop */}
+      <aside
+        className={`fixed md:relative z-40 inset-y-0 left-0 w-80 bg-slate-900 border-r border-slate-800 flex flex-col p-4 space-y-4 transition-transform duration-300 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
         <div className="flex items-center justify-between">
           <h1 className="font-bold text-lg text-emerald-400 flex items-center gap-2">
             🥝 Kiwi PM Trainer
@@ -188,7 +193,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Фильтр категорий */}
+        {/* Категории */}
         <div className="flex flex-wrap gap-1.5">
           {categories.map((cat) => (
             <button
@@ -210,11 +215,11 @@ export default function Home() {
           {filteredScenarios.map((s) => (
             <div
               key={s.id}
-              onClick={() => setSelectedScenario(s)}
+              onClick={() => handleSelectScenario(s)}
               className={`p-3 rounded-xl cursor-pointer border transition-all ${
                 selectedScenario.id === s.id
                   ? 'bg-emerald-950/40 border-emerald-500/50 text-white'
-                  : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
+                  : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-300'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
@@ -231,26 +236,42 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* Центральная панель: Чат и фидбек */}
-      <section className="flex-1 flex flex-col bg-slate-950">
-        {/* Шапка чата */}
-        <header className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
-          <div>
-            <h2 className="font-bold text-sm text-slate-100">{selectedScenario.title}</h2>
-            <p className="text-xs text-slate-400">{selectedScenario.description}</p>
+      {/* Оверлей мобильного меню */}
+      {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 z-30 md:hidden"
+        />
+      )}
+
+      {/* Основной чат */}
+      <section className="flex-1 flex flex-col bg-slate-950 min-w-0">
+        {/* Шапка */}
+        <header className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="md:hidden p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white"
+            >
+              ☰
+            </button>
+            <div className="truncate">
+              <h2 className="font-bold text-sm text-slate-100 truncate">{selectedScenario.title}</h2>
+              <p className="text-xs text-slate-400 truncate">{selectedScenario.description}</p>
+            </div>
           </div>
           <button
             onClick={handleGetFullFeedback}
             disabled={isFeedbackLoading || messages.length < 2}
-            className="text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-xl transition-all"
+            className="text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ml-2"
           >
             {isFeedbackLoading ? 'Анализ...' : '📊 Итоговый отчёт'}
           </button>
         </header>
 
-        {/* Область сообщений */}
+        {/* Область диалога */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Итоговый отчёт сценария (включая STAR-разбор) */}
+          {/* Итоговый отчёт сценария */}
           {feedback && (
             <div className="p-4 bg-slate-900 border border-emerald-800/60 rounded-2xl space-y-3 text-xs max-h-72 overflow-y-auto">
               <div className="font-bold text-emerald-400 flex justify-between items-center border-b border-slate-800 pb-2">
@@ -262,7 +283,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* STAR Mode Разбор */}
               {feedback.starFeedback ? (
                 <div className="space-y-2.5 text-xs">
                   <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
@@ -289,7 +309,6 @@ export default function Home() {
                   )}
                 </div>
               ) : (
-                /* Обычный отчёт */
                 ((feedback as any).overallFeedback || (feedback as any).summary) && (
                   <p className="text-slate-300 leading-relaxed">
                     {(feedback as any).overallFeedback || (feedback as any).summary}
@@ -299,14 +318,14 @@ export default function Home() {
             </div>
           )}
 
-          {/* Лента чата */}
+          {/* Сообщения */}
           {messages.map((msg, idx) => (
             <div
               key={idx}
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`max-w-[80%] p-3.5 rounded-2xl text-xs leading-relaxed ${
+                className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-emerald-600 text-white rounded-br-none'
                     : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'
@@ -315,7 +334,6 @@ export default function Home() {
                 {msg.content}
               </div>
               
-              {/* Показать кнопку разбора под последним сообщением пользователя */}
               {msg.role === 'user' && idx === messages.length - 1 && (
                 <button
                   onClick={handleAnalyzeLastMessage}
@@ -328,7 +346,7 @@ export default function Home() {
             </div>
           ))}
 
-          {/* Разбор одного сообщения (Single Feedback Overlay) */}
+          {/* Оверлей разбора сообщения */}
           {singleMessageFeedback && (
             <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-xl space-y-2 text-xs text-slate-200">
               <div className="font-semibold text-emerald-400">✨ Улучшенная версия:</div>
@@ -356,7 +374,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Подсказки к ответу (Hints) */}
+          {/* Hints */}
           {hints.length > 0 && (
             <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2 text-xs">
               <div className="font-bold text-amber-400">💡 Идеи ответов (PM Hints):</div>
@@ -375,8 +393,8 @@ export default function Home() {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Панель ввода */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/40 space-y-2">
+        {/* Форма ввода */}
+        <div className="p-3.5 border-t border-slate-800 bg-slate-900/40 space-y-2">
           <div className="flex gap-2">
             <button
               onClick={handleGetHints}
@@ -390,8 +408,8 @@ export default function Home() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Напишите или наговорите ответ..."
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-emerald-500 text-slate-100"
+              placeholder="Напишите ответ..."
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-500 text-slate-100 min-w-0"
             />
             <button
               onClick={() => handleSendMessage()}
@@ -404,7 +422,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Модальное окно словаря */}
+      {/* Словарь */}
       <VocabularyModal
         isOpen={isVocabOpen}
         onClose={() => setIsVocabOpen(false)}
