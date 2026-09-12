@@ -39,8 +39,9 @@ export default function Home() {
     if (history.length > 0) {
       setMessages(history);
     } else {
+      const startText = selectedScenario.initialPrompt || selectedScenario.initialMessage || selectedScenario.description;
       const initialMsgs: Message[] = [
-        { role: 'assistant', content: selectedScenario.initialPrompt }
+        { role: 'assistant', content: startText }
       ];
       setMessages(initialMsgs);
       storage.saveChatHistory(selectedScenario.id, initialMsgs);

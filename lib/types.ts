@@ -41,6 +41,7 @@ export interface Scenario {
   title: string;
   category: 'Relocation' | 'Everyday' | 'Social' | 'Work' | 'Interview';
   description: string;
-  initialPrompt: string;
+  initialPrompt?: string;
+  initialMessage?: string;
   isStarMode?: boolean;
 }
