@@ -228,7 +228,7 @@ CRITICAL CONVERSATIONAL RULES:
 4. Focus on blameless post-mortem, mitigation steps, and action items. Ask ONE clear question at a time.
 5. Use casual executive Kiwi phrasing (e.g., "no worries", "all good", "reckon", "sorted").
 `
-  }
+  },
     {
     id: 'star-stakeholder-conflict',
     title: 'STAR: Stakeholder Conflict',
