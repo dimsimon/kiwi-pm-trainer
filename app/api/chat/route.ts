@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     ];
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // Исправлено: валидная актуальная модель Gemini
+      model: 'gemini-3.6-flash', // Исправлено: валидная актуальная модель Gemini
       contents,
       config: {
         systemInstruction: systemPrompt || 'You are a helpful assistant.',
