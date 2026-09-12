@@ -91,7 +91,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Chat Error:', err);
-    } fontally {
+    } finally {
       setIsLoading(false);
     }
   };
