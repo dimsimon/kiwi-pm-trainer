@@ -1,15 +1,3 @@
-export interface VocabItem {
-  id: string;
-  word: string;
-  phrase?: string;
-  translation: string;
-  context?: string;
-  exampleEn?: string;
-  exampleRu?: string;
-  addedAt?: number;
-  dateAdded?: string | number;
-}
-
 export interface HighlightedPhrase {
   original: string;
   suggestion: string;
@@ -24,21 +12,35 @@ export interface FeedbackData {
   highlightedPhrases?: HighlightedPhrase[];
   improvements?: string[];
   vocabularySuggestions?: { original: string; recommended: string; reason: string }[];
+  starFeedback?: {
+    situation: string;
+    task: string;
+    action: string;
+    result: string;
+    score: number;
+    recommendation: string;
+  };
+}
+
+export interface VocabItem {
+  id: string;
+  word: string;
+  translation: string;
+  context: string;
+  pmExample: string;
+  addedAt: number;
+}
+
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export interface Scenario {
   id: string;
   title: string;
-  category: 'Relocation' | 'Everyday' | 'Social' | 'Work';
+  category: 'Relocation' | 'Everyday' | 'Social' | 'Work' | 'Interview';
   description: string;
-  initialPrompt?: string;
-  initialMessage?: string;
-  systemPrompt?: string;
-}
-
-export interface Message {
-  role?: 'user' | 'assistant';
-  sender?: 'user' | 'ai';
-  content?: string;
-  text?: string;
+  initialPrompt: string;
+  isStarMode?: boolean;
 }

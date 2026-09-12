@@ -229,4 +229,20 @@ CRITICAL CONVERSATIONAL RULES:
 5. Use casual executive Kiwi phrasing (e.g., "no worries", "all good", "reckon", "sorted").
 `
   }
+    {
+    id: 'star-stakeholder-conflict',
+    title: 'STAR: Stakeholder Conflict',
+    category: 'Interview',
+    description: 'Behavioral Interview: Tell me about a time you had to resolve a severe disagreement between Engineering and Product Design.',
+    initialPrompt: 'Hi there! Thanks for joining today. To start off our behavioral round: Could you tell me about a time you experienced a major conflict with key stakeholders or team leads, and how you managed it?',
+    isStarMode: true,
+  },
+  {
+    id: 'star-failed-launch',
+    title: 'STAR: Handling Product Failure',
+    category: 'Interview',
+    description: 'Behavioral Interview: Walk me through a product feature or initiative that missed its key performance indicators (KPIs).',
+    initialPrompt: 'Welcome! Let’s discuss product setbacks. Can you describe a project or feature you led that failed to meet expectations or key metrics? How did you respond?',
+    isStarMode: true,
+  },
 ];

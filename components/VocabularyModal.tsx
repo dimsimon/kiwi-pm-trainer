@@ -4,232 +4,173 @@ import React, { useState, useEffect } from 'react';
 import { VocabItem } from '@/lib/types';
 import { storage } from '@/lib/storage';
 
-interface Props {
+interface VocabularyModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialWord?: string;
   initialContext?: string;
 }
 
-interface TranslationOption {
-  translation: string;
-  exampleEn: string;
-  exampleRu: string;
-}
-
-export function VocabularyModal({ isOpen, onClose, initialWord, initialContext }: Props) {
-  const [vocab, setVocab] = useState<VocabItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [options, setOptions] = useState<TranslationOption[]>([]);
-  const [selectedOption, setSelectedOption] = useState<TranslationOption | null>(null);
-  const [activeTab, setActiveTab] = useState<'translate' | 'list'>('translate');
+export function VocabularyModal({ isOpen, onClose, initialWord = '', initialContext = '' }: VocabularyModalProps) {
+  const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
+  const [word, setWord] = useState(initialWord);
+  const [context, setContext] = useState(initialContext);
+  const [translation, setTranslation] = useState('');
+  const [pmExample, setPmExample] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [savedWords, setSavedWords] = useState<VocabItem[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      setVocab(storage.getVocabulary());
+      setWord(initialWord);
+      setContext(initialContext);
+      setSavedWords(storage.getSavedWords());
       if (initialWord) {
-        setActiveTab('translate');
-        fetchTranslationOptions(initialWord, initialContext || '');
-      } else {
-        setActiveTab('list');
+        setActiveTab('search');
+        handleTranslate(initialWord, initialContext);
       }
     }
   }, [isOpen, initialWord, initialContext]);
 
-  const fetchTranslationOptions = async (word: string, context: string) => {
-    setLoading(true);
-    setSelectedOption(null);
-    setOptions([]);
+  const handleTranslate = async (wToTranslate: string, cText: string) => {
+    if (!wToTranslate.trim()) return;
+    setIsLoading(true);
     try {
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word, context }),
+        body: JSON.stringify({ word: wToTranslate, context: cText }),
       });
       const data = await res.json();
-      if (data.options) {
-        setOptions(data.options);
-      }
-    } catch (e) {
-      console.error(e);
+      setTranslation(data.translation || 'Перевод не найден');
+      setPmExample(data.pmExample || '');
+    } catch (err) {
+      console.error(err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleSaveWord = () => {
-    if (!initialWord || !selectedOption) return;
-
+    if (!word) return;
     const newItem: VocabItem = {
       id: Date.now().toString(),
-      word: initialWord,
-      translation: selectedOption.translation,
-      context: initialContext,
-      exampleEn: selectedOption.exampleEn,
-      exampleRu: selectedOption.exampleRu,
-      dateAdded: new Date().toISOString().split('T')[0],
+      word,
+      translation,
+      context,
+      pmExample,
+      addedAt: Date.now(),
     };
-
-    storage.saveVocabItem(newItem);
-    setVocab(storage.getVocabulary());
-    setActiveTab('list');
+    storage.saveWord(newItem);
+    setSavedWords(storage.getSavedWords());
+    setActiveTab('saved');
   };
 
-  const handleDeleteItem = (id: string) => {
-    storage.deleteVocabItem(id);
-    setVocab(storage.getVocabulary());
-  };
-
-  // Вспомогательная функция для подсветки слова в предложении
-  const highlightWordInText = (text: string, targetWord?: string) => {
-    if (!targetWord || !text) return text;
-    const parts = text.split(new RegExp(`(${targetWord})`, 'gi'));
-    return parts.map((part, i) =>
-      part.toLowerCase() === targetWord.toLowerCase() ? (
-        <span key={i} className="bg-emerald-500/30 text-emerald-300 font-bold px-1 rounded">
-          {part}
-        </span>
-      ) : (
-        part
-      )
-    );
+  const handleRemoveWord = (id: string) => {
+    storage.removeWord(id);
+    setSavedWords(storage.getSavedWords());
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden text-slate-100 shadow-xl">
-        {/* Шапка модалки */}
-        <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('translate')}
-              className={`text-xs px-3 py-1.5 rounded-lg border font-semibold ${
-                activeTab === 'translate'
-                  ? 'bg-emerald-600 border-emerald-500 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-            >
-              🔍 Перевод
-            </button>
-            <button
-              onClick={() => setActiveTab('list')}
-              className={`text-xs px-3 py-1.5 rounded-lg border font-semibold ${
-                activeTab === 'list'
-                  ? 'bg-emerald-600 border-emerald-500 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-            >
-              📖 Мой словарь ({vocab.length})
-            </button>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg">
-            ✕
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 text-sm text-slate-100 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-100 text-lg"
+        >
+          ✕
+        </button>
+
+        {/* Вкладки */}
+        <div className="flex gap-2 border-b border-slate-800 pb-2">
+          <button
+            onClick={() => setActiveTab('search')}
+            className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
+              activeTab === 'search' ? 'bg-emerald-600 font-bold text-white' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            🔍 Поиск & Анализ
+          </button>
+          <button
+            onClick={() => setActiveTab('saved')}
+            className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+              activeTab === 'saved' ? 'bg-emerald-600 font-bold text-white' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            📚 Мой словарь ({savedWords.length})
           </button>
         </div>
 
-        {/* Контент */}
-        <div className="p-4 overflow-y-auto flex-1 space-y-4">
-          {activeTab === 'translate' ? (
+        {activeTab === 'search' ? (
+          <div className="space-y-3">
             <div>
-              {initialWord ? (
-                <div className="space-y-3">
-                  <div className="text-center pb-2 border-b border-slate-800">
-                    <span className="text-2xl font-bold text-emerald-400">{initialWord}</span>
+              <label className="text-xs text-slate-400 block mb-1">Слово / Фраза</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={word}
+                  onChange={(e) => setWord(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:border-emerald-500"
+                  placeholder="Например, trade-off"
+                />
+                <button
+                  onClick={() => handleTranslate(word, context)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-semibold"
+                >
+                  Найти
+                </button>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="text-xs text-slate-400 italic text-center py-4">Анализ лексики...</div>
+            ) : (
+              translation && (
+                <div className="space-y-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800/80">
+                  <div>
+                    <span className="text-[10px] text-emerald-400 uppercase font-bold block">Перевод</span>
+                    <p className="text-slate-200 font-semibold">{translation}</p>
                   </div>
-
-                  {loading ? (
-                    <div className="py-8 text-center text-xs text-slate-400 animate-pulse">
-                      ИИ подбирает варианты перевода и примеры...
+                  {pmExample && (
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Пример в IT/PM</span>
+                      <p className="text-xs text-slate-300 italic">"{pmExample}"</p>
                     </div>
-                  ) : (
-                    <>
-                      <p className="text-xs text-slate-400 font-medium">
-                        Выберите подходящий перевод:
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {options.map((opt, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setSelectedOption(opt)}
-                            className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition-all ${
-                              selectedOption?.translation === opt.translation
-                                ? 'bg-emerald-950 border-emerald-500 text-emerald-200'
-                                : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
-                            }`}
-                          >
-                            👉 {opt.translation}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Показ контекстного примера */}
-                      {selectedOption && (
-                        <div className="mt-4 p-3 bg-slate-950 border border-emerald-800/60 rounded-xl space-y-2 animate-fadeIn">
-                          <div className="text-[11px] font-bold text-emerald-400">
-                            💡 Пример использования:
-                          </div>
-                          <div className="text-xs text-slate-200">
-                            {highlightWordInText(selectedOption.exampleEn, initialWord)}
-                          </div>
-                          <div className="text-xs text-slate-400 italic">
-                            {selectedOption.exampleRu}
-                          </div>
-
-                          <button
-                            onClick={handleSaveWord}
-                            className="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition-all"
-                          >
-                            + Добавить "{initialWord}" ({selectedOption.translation}) в словарь
-                          </button>
-                        </div>
-                      )}
-                    </>
                   )}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-xs text-slate-500">
-                  Нажмите на любое слово в диалоге, чтобы перевести его.
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Список сохраненных слов */
-            <div className="space-y-2">
-              {vocab.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-500">
-                  Словарь пока пуст.
-                </div>
-              ) : (
-                vocab.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex justify-between items-start gap-2"
+                  <button
+                    onClick={handleSaveWord}
+                    className="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs py-2 rounded-xl font-bold transition-all"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-emerald-400">{item.word}</span>
-                        <span className="text-xs text-slate-300">— {item.translation}</span>
-                      </div>
-                      {item.exampleEn && (
-                        <div className="text-[11px] text-slate-400">
-                          {highlightWordInText(item.exampleEn, item.word)}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="text-slate-600 hover:text-rose-400 text-xs p-1"
-                    >
-                      🗑
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+                    ⭐ Сохранить в карточки
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        ) : (
+          /* Вкладка сохраненных карточек */
+          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+            {savedWords.length === 0 ? (
+              <div className="text-center text-xs text-slate-500 py-6">В словаре пока нет сохраненных слов</div>
+            ) : (
+              savedWords.map((item) => (
+                <div key={item.id} className="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-1 relative group">
+                  <button
+                    onClick={() => handleRemoveWord(item.id)}
+                    className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs"
+                  >
+                    🗑
+                  </button>
+                  <div className="font-bold text-emerald-400">{item.word}</div>
+                  <div className="text-xs text-slate-200">{item.translation}</div>
+                  {item.pmExample && <div className="text-[11px] text-slate-400 italic">"{item.pmExample}"</div>}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
