@@ -170,7 +170,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex h-[100dvh] bg-slate-950 text-slate-100 font-sans overflow-hidden relative">
+    <main className="flex h-dvh w-full bg-slate-950 text-slate-100 font-sans overflow-hidden fixed inset-0">
       {/* Боковая панель */}
       <aside
         className={`fixed md:relative z-50 inset-y-0 left-0 w-80 bg-slate-900 border-r border-slate-800 flex flex-col p-4 space-y-4 transition-transform duration-300 ${
@@ -245,7 +245,7 @@ export default function Home() {
       )}
 
       {/* Основной чат */}
-      <section className="flex-1 flex flex-col bg-slate-950 min-w-0 h-full">
+      <section className="flex-1 flex flex-col bg-slate-950 min-w-0 h-full overflow-hidden">
         {/* Шапка */}
         <header className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
           <div className="flex items-center gap-2 min-w-0">
@@ -394,12 +394,12 @@ export default function Home() {
         </div>
 
         {/* Форма ввода */}
-        <div className="p-3.5 border-t border-slate-800 bg-slate-900/40 space-y-2">
-          <div className="flex gap-2">
+        <div className="p-3.5 border-t border-slate-800 bg-slate-900/90 shrink-0 space-y-2">
+          <div className="flex gap-2 items-center">
             <button
               onClick={handleGetHints}
               disabled={isHintsLoading}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl border border-slate-700 transition-all flex items-center gap-1"
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 shrink-0"
             >
               💡 Подсказка
             </button>
@@ -409,12 +409,12 @@ export default function Home() {
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
               placeholder="Напишите ответ..."
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-500 text-slate-100 min-w-0"
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-base md:text-xs focus:outline-none focus:border-emerald-500 text-slate-100 min-w-0"
             />
             <button
               onClick={() => handleSendMessage()}
               disabled={isLoading || !inputMessage.trim()}
-              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all"
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition-all shrink-0"
             >
               Отправить
             </button>
