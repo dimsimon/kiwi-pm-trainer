@@ -58,7 +58,7 @@ export default function Home() {
 
   const handleSelectScenario = (scenario: Scenario) => {
     setSelectedScenario(scenario);
-    setIsSidebarOpen(false); // Скрывать боковую панель на мобилках после выбора
+    setIsSidebarOpen(false);
   };
 
   const handleSendMessage = async (textToSend?: string) => {
@@ -91,7 +91,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Chat Error:', err);
-    } finally {
+    } fontally {
       setIsLoading(false);
     }
   };
@@ -170,10 +170,10 @@ export default function Home() {
   };
 
   return (
-    <main className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden relative">
-      {/* Боковая панель для Mobile (оверлей) и Desktop */}
+    <main className="flex h-[100dvh] bg-slate-950 text-slate-100 font-sans overflow-hidden relative">
+      {/* Боковая панель */}
       <aside
-        className={`fixed md:relative z-40 inset-y-0 left-0 w-80 bg-slate-900 border-r border-slate-800 flex flex-col p-4 space-y-4 transition-transform duration-300 ${
+        className={`fixed md:relative z-50 inset-y-0 left-0 w-80 bg-slate-900 border-r border-slate-800 flex flex-col p-4 space-y-4 transition-transform duration-300 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
@@ -240,12 +240,12 @@ export default function Home() {
       {isSidebarOpen && (
         <div
           onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 bg-black/60 z-30 md:hidden"
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
         />
       )}
 
       {/* Основной чат */}
-      <section className="flex-1 flex flex-col bg-slate-950 min-w-0">
+      <section className="flex-1 flex flex-col bg-slate-950 min-w-0 h-full">
         {/* Шапка */}
         <header className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
           <div className="flex items-center gap-2 min-w-0">
